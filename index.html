@@ -328,7 +328,8 @@ function parseTable(table) {
     // Skip header rows — for no-label sheets only
     if (!hasLabels && i < 2) continue;
 
-    const dateStr = parseDateStr(get(dateIdx));
+    // Use formatted value first (f) — raw value Date(2026,0,6) is ambiguous (gviz 0-index month)
+    const dateStr = parseDateStr(getFmt(dateIdx)) || parseDateStr(get(dateIdx));
     if (!dateStr) continue;
     const rawBranch = get(branchIdx);
     if (!rawBranch) continue;
