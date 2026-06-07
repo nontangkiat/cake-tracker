@@ -391,7 +391,7 @@ async function loadAllData() {
     ALL_ORDERS = results.flatMap(parseTable);
     const seen = new Set();
     ALL_ORDERS = ALL_ORDERS.filter(o => {
-      const key = `${o.date}|${o.branch}|${o.customer}`;
+      const key = `${o.date}|${o.branch}|${o.customer}|${o.flavor1}|${o.size}`;
       if (seen.has(key)) return false;
       seen.add(key); return true;
     });
