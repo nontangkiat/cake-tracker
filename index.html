@@ -439,7 +439,7 @@ function checkPw() {
 
 // ─── FETCH ────────────────────────────────────────────────
 async function fetchTab(tabName) {
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tabName)}`;
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&headers=4&sheet=${encodeURIComponent(tabName)}`;
   const res = await fetch(url);
   const text = await res.text();
   const json = JSON.parse(text.replace(/^[^(]+\(/, '').replace(/\);?\s*$/, ''));
