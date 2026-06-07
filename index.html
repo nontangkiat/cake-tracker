@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cake Order Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #FDF6EE;
+    --warm-white: #FEFCF8;
+    --brown-dark: #2C1A0E;
+    --brown-mid: #6B3F1F;
+    --brown-light: #C4955A;
+    --accent: #E8703A;
+    --accent-soft: #F5C4A0;
+    --samyan-bg: #FFF0E6;
+    --samyan-text: #8B3A0F;
+    --samyan-dot: #E8703A;
+    --ratch-bg: #E8F4EC;
+    --ratch-text: #1A5C2E;
+    --ratch-dot: #2E9E54;
+    --border: rgba(44,26,14,0.1);
+    --shadow: 0 2px 20px rgba(44,26,14,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--brown-dark);
+    min-height: 100vh;
+  }
+
+  /* LOGIN */
+  #login-screen {
+    position: fixed; inset: 0;
+    background: var(--brown-dark);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+    flex-direction: column; gap: 0;
+  }
+  .login-box {
+    background: var(--warm-white);
+    border-radius: 20px;
+    padding: 48px 40px;
+    width: 340px;
+    text-align: center;
+  }
+  .login-logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    color: var(--brown-dark);
+    margin-bottom: 6px;
+  }
+  .login-sub {
+    font-size: 13px;
+    color: var(--brown-light);
+    margin-bottom: 32px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .login-box input {
+    width: 100%; padding: 12px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    background: var(--cream);
+    color: var(--brown-dark);
+    text-align: center;
+    letter-spacing: 0.15em;
+    outline: none;
+    transition: border-color 0.2s;
+    margin-bottom: 12px;
+  }
+  .login-box input:focus { border-color: var(--accent); }
+  .login-btn {
+    width: 100%; padding: 12px;
+    background: var(--brown-dark);
+    color: white;
+    border: none; border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .login-btn:hover { background: var(--brown-mid); }
+  .login-error {
+    font-size: 12px; color: #C0392B;
+    margin-top: 10px; min-height: 16px;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--brown-dark);
+    padding: 0 32px;
+    height: 60px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px; color: var(--warm-white);
+    letter-spacing: 0.02em;
+  }
+  .logo span { color: var(--accent); }
+  .header-right {
+    display: flex; align-items: center; gap: 20px;
+  }
+  .last-updated {
+    font-size: 12px; color: rgba(255,255,255,0.45);
+  }
+  .refresh-btn {
+    background: rgba(255,255,255,0.1);
+    border: none; border-radius: 8px;
+    color: white; padding: 6px 14px;
+    font-size: 13px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: background 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .refresh-btn:hover { background: rgba(255,255,255,0.18); }
+  .refresh-btn svg { width: 14px; height: 14px; }
+
+  /* MAIN */
+  main { padding: 28px 32px; max-width: 1200px; margin: 0 auto; }
+
+  /* METRICS */
+  .metrics {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+    margin-bottom: 28px;
+  }
+  .metric-card {
+    background: var(--warm-white);
+    border-radius: 16px;
+    padding: 20px 22px;
+    border: 1px solid var(--border);
+  }
+  .metric-label {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--brown-light);
+    margin-bottom: 8px;
+  }
+  .metric-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px; color: var(--brown-dark); line-height: 1;
+    margin-bottom: 4px;
+  }
+  .metric-sub { font-size: 12px; color: var(--brown-light); }
+
+  /* TABS */
+  .tab-row {
+    display: flex; gap: 4px; margin-bottom: 24px;
+    background: var(--warm-white);
+    border-radius: 12px; padding: 4px;
+    border: 1px solid var(--border);
+    width: fit-content;
+  }
+  .tab {
+    padding: 8px 20px; border-radius: 8px;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer; border: none;
+    background: transparent; color: var(--brown-light);
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+  }
+  .tab.active {
+    background: var(--brown-dark); color: white;
+  }
+
+  /* CALENDAR */
+  .cal-controls {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+  }
+  .month-nav { display: flex; align-items: center; gap: 12px; }
+  .nav-btn {
+    width: 34px; height: 34px; border-radius: 8px;
+    background: var(--warm-white); border: 1px solid var(--border);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    color: var(--brown-dark); font-size: 16px; transition: all 0.2s;
+  }
+  .nav-btn:hover { background: var(--brown-dark); color: white; border-color: var(--brown-dark); }
+  .month-label {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px; color: var(--brown-dark); min-width: 180px; text-align: center;
+  }
+  .legend { display: flex; gap: 16px; align-items: center; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--brown-mid); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+  .cal-wrap {
+    background: var(--warm-white);
+    border-radius: 16px; border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .cal-weekdays {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    background: var(--brown-dark); padding: 10px 0;
+  }
+  .cal-weekdays span {
+    text-align: center; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.06em; color: rgba(255,255,255,0.6);
+    text-transform: uppercase;
+  }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border); }
+  .cal-cell {
+    background: var(--warm-white);
+    min-height: 90px; padding: 8px;
+    position: relative;
+  }
+  .cal-cell.empty { background: var(--cream); }
+  .cal-cell.today { background: #FFF8F2; }
+  .day-num {
+    font-size: 12px; font-weight: 500; color: var(--brown-light);
+    margin-bottom: 4px;
+  }
+  .cal-cell.today .day-num { color: var(--accent); font-weight: 600; }
+  .order-pill {
+    font-size: 10px; padding: 2px 7px; border-radius: 4px;
+    margin-bottom: 2px; display: block; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; line-height: 1.6;
+    cursor: default;
+  }
+  .pill-samyan { background: var(--samyan-bg); color: var(--samyan-text); }
+  .pill-ratch  { background: var(--ratch-bg);  color: var(--ratch-text); }
+
+  /* LIST */
+  .list-controls { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .list-controls select {
+    padding: 8px 12px; border-radius: 9px;
+    border: 1px solid var(--border);
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    background: var(--warm-white); color: var(--brown-dark); cursor: pointer;
+    outline: none;
+  }
+  .orders-table {
+    background: var(--warm-white); border-radius: 16px;
+    border: 1px solid var(--border); overflow: hidden;
+  }
+  .table-header {
+    display: grid;
+    grid-template-columns: 90px 140px 1fr 90px 80px 90px;
+    padding: 10px 20px;
+    background: var(--cream);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 500; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--brown-light);
+  }
+  .table-row {
+    display: grid;
+    grid-template-columns: 90px 140px 1fr 90px 80px 90px;
+    padding: 11px 20px; font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    transition: background 0.15s;
+  }
+  .table-row:last-child { border-bottom: none; }
+  .table-row:hover { background: var(--cream); }
+  .branch-tag {
+    display: inline-block; padding: 2px 8px; border-radius: 5px;
+    font-size: 11px; font-weight: 500;
+  }
+  .tag-samyan { background: var(--samyan-bg); color: var(--samyan-text); }
+  .tag-ratch  { background: var(--ratch-bg);  color: var(--ratch-text); }
+
+  /* CHART TAB */
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .chart-card {
+    background: var(--warm-white); border-radius: 16px;
+    border: 1px solid var(--border); padding: 24px;
+  }
+  .chart-card h3 {
+    font-size: 13px; font-weight: 500; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--brown-light); margin-bottom: 16px;
+  }
+  .chart-wrap { position: relative; height: 220px; }
+
+  /* LOADING */
+  .loading {
+    text-align: center; padding: 60px 20px;
+    color: var(--brown-light); font-size: 14px;
+  }
+  .spinner {
+    width: 32px; height: 32px; border: 2px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .hidden { display: none !important; }
+
+  @media (max-width: 768px) {
+    main { padding: 16px; }
+    .metrics { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .charts-grid { grid-template-columns: 1fr; }
+    header { padding: 0 16px; }
+    .table-header, .table-row { grid-template-columns: 80px 110px 1fr 80px 70px; }
+    .table-header span:last-child, .table-row span:last-child { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">🎂 Cake Tracker</div>
+    <div class="login-sub">Staff Access Only</div>
+    <input type="password" id="pw-input" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter')checkPw()">
+    <button class="login-btn" onclick="checkPw()">เข้าสู่ระบบ</button>
+    <div class="login-error" id="pw-error"></div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">🎂 Cake <span>Tracker</span></div>
+  <div class="header-right">
+    <span class="last-updated" id="last-updated">–</span>
+    <button class="refresh-btn" onclick="loadAllData()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 1 0 5.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+      Refresh
+    </button>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main id="main-content">
+  <div class="loading" id="loading-state">
+    <div class="spinner"></div>
+    กำลังโหลดข้อมูลจาก Google Sheets...
+  </div>
+
+  <div id="dashboard" class="hidden">
+    <!-- METRICS -->
+    <div class="metrics" id="metrics-row"></div>
+
+    <!-- TABS -->
+    <div class="tab-row">
+      <button class="tab active" onclick="switchTab('cal',this)">📅 ปฏิทิน</button>
+      <button class="tab" onclick="switchTab('list',this)">📋 รายการ</button>
+      <button class="tab" onclick="switchTab('chart',this)">📊 สถิติ</button>
+    </div>
+
+    <!-- CALENDAR TAB -->
+    <div id="tab-cal">
+      <div class="cal-controls">
+        <div class="month-nav">
+          <button class="nav-btn" onclick="prevMonth()">‹</button>
+          <div class="month-label" id="month-label"></div>
+          <button class="nav-btn" onclick="nextMonth()">›</button>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--samyan-dot)"></div>Samyan</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--ratch-dot)"></div>Ratchaphruek</div>
+        </div>
+      </div>
+      <div class="cal-wrap">
+        <div class="cal-weekdays">
+          <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+    </div>
+
+    <!-- LIST TAB -->
+    <div id="tab-list" class="hidden">
+      <div class="list-controls">
+        <select id="f-branch" onchange="renderList()">
+          <option value="">ทุกสาขา</option>
+          <option value="Samyan">Samyan</option>
+          <option value="Ratchaphruek">Ratchaphruek</option>
+        </select>
+        <select id="f-month" onchange="renderList()">
+          <option value="">ทุกเดือน</option>
+          <option value="4">เมษายน</option>
+          <option value="5">พฤษภาคม</option>
+          <option value="6">มิถุนายน</option>
+        </select>
+      </div>
+      <div class="orders-table">
+        <div class="table-header">
+          <span>วันที่</span><span>สาขา</span><span>ลูกค้า</span><span>ขนาด</span><span>ราคา</span><span>สถานะ</span>
+        </div>
+        <div id="list-body"></div>
+      </div>
+    </div>
+
+    <!-- CHART TAB -->
+    <div id="tab-chart" class="hidden">
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>ออเดอร์รายวัน</h3>
+          <div class="chart-wrap"><canvas id="c-daily" role="img" aria-label="Daily orders chart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>แยกตามสาขา รายเดือน</h3>
+          <div class="chart-wrap"><canvas id="c-branch" role="img" aria-label="Orders by branch per month"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>ยอดขาย (฿) รายเดือน</h3>
+          <div class="chart-wrap"><canvas id="c-rev" role="img" aria-label="Revenue by month"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>ขนาดเค้กยอดนิยม</h3>
+          <div class="chart-wrap"><canvas id="c-size" role="img" aria-label="Popular cake sizes"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ─── CONFIG ───────────────────────────────────────────────
+const SHEET_ID = '1pPtrRGeTNwiSDQ830JKzOxpoCk0UZGvvo7dBorcC6RM';
+const TABS = ['Cake orders', 'May Cake orders', 'June Cake orders'];
+const PASSWORD = 'cake2026'; // ← เปลี่ยนรหัสได้ตรงนี้
+// ──────────────────────────────────────────────────────────
+
+let ALL_ORDERS = [];
+let curYear = 2026, curMonth = 6;
+let chartsBuilt = false;
+
+// LOGIN
+function checkPw() {
+  const val = document.getElementById('pw-input').value;
+  if (val === PASSWORD) {
+    document.getElementById('login-screen').style.display = 'none';
+    loadAllData();
+  } else {
+    document.getElementById('pw-error').textContent = 'รหัสผ่านไม่ถูกต้อง';
+    document.getElementById('pw-input').value = '';
+  }
+}
+
+// ─── FETCH ────────────────────────────────────────────────
+async function fetchTab(tabName) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tabName)}`;
+  const res = await fetch(url);
+  const text = await res.text();
+  const json = JSON.parse(text.replace(/^[^(]+\(/, '').replace(/\);?\s*$/, ''));
+  return json.table;
+}
+
+function parseTable(table) {
+  const rows = table.rows;
+  // Find header row: row containing 'Date' or 'Branch'
+  let headerIdx = -1;
+  for (let i = 0; i < Math.min(5, rows.length); i++) {
+    const vals = rows[i].c.map(c => c && c.v ? String(c.v).trim() : '');
+    if (vals.some(v => v === 'Date') && vals.some(v => v === 'Branch')) {
+      headerIdx = i; break;
+    }
+  }
+  if (headerIdx < 0) return [];
+
+  const headers = rows[headerIdx].c.map(c => c && c.v ? String(c.v).trim() : '');
+  const dateIdx   = headers.findIndex(h => h === 'Date');
+  const branchIdx = headers.findIndex(h => h === 'Branch');
+  const custIdx   = headers.findIndex(h => h === 'CUSTOMER NAME' || h === 'Customer Name');
+  const sizeIdx   = headers.findIndex(h => h.toLowerCase().includes('size'));
+  const fl1Idx    = headers.findIndex(h => h === 'Flavors1' || h === 'Flavor1');
+  const fl2Idx    = headers.findIndex(h => h === 'Flavors2' || h === 'Flavor2');
+  const totalIdx  = headers.findIndex(h => h === 'Total');
+  const noteIdx   = headers.findIndex(h => h === 'Note');
+
+  const SIZE_MAP = {'1/4':0, '1/2':1, '1':2, '2':3, '3':4};
+
+  const orders = [];
+  for (let i = headerIdx + 2; i < rows.length; i++) {
+    const r = rows[i].c;
+    const get = idx => (r[idx] && r[idx].v != null) ? r[idx].v : null;
+
+    const rawDate = get(dateIdx);
+    if (!rawDate) continue;
+
+    let dateStr = null;
+    if (typeof rawDate === 'string') {
+      // dd/mm/yyyy
+      const m = rawDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (m) dateStr = `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    } else if (typeof rawDate === 'object' && rawDate) {
+      // gviz Date object
+      try {
+        const d = new Date(rawDate);
+        if (!isNaN(d)) dateStr = d.toISOString().slice(0,10);
+      } catch(e) {}
+    } else if (typeof rawDate === 'number') {
+      // serial date unlikely but handle
+      dateStr = null;
+    }
+    // gviz returns dates as "Date(2026,3,1)" strings sometimes
+    if (!dateStr && typeof rawDate === 'string') {
+      const dm = rawDate.match(/Date\((\d+),(\d+),(\d+)\)/);
+      if (dm) {
+        const y = parseInt(dm[1]), mo = parseInt(dm[2])+1, d = parseInt(dm[3]);
+        dateStr = `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      }
+    }
+    if (!dateStr) continue;
+
+    // Skip obviously wrong years
+    const yr = parseInt(dateStr.slice(0,4));
+    if (yr < 2025 || yr > 2027) continue;
+
+    const rawBranch = get(branchIdx);
+    if (!rawBranch) continue;
+    const branch = String(rawBranch).trim();
+    const branchNorm = branch.toLowerCase().includes('ratch') || branch.toLowerCase().includes('circle')
+      ? 'Ratchaphruek' : branch;
+
+    let size = get(sizeIdx);
+    if (size !== null) {
+      size = String(size).trim();
+      // Convert fraction dates back (gviz parses "1/4" as date Jan 4)
+      const dm = size.match(/Date\((\d+),(\d+),(\d+)\)/);
+      if (dm) {
+        const mo = parseInt(dm[2])+1, d = parseInt(dm[3]);
+        if (d <= 6 && mo <= 6) size = `${d > 2 ? '1/' + d : d == 2 ? '1/2' : '1'}`;
+        const key = Object.keys(SIZE_MAP).find(k => {
+          const parts = k.split('/');
+          if (parts.length === 2) return parseInt(parts[1]) === d && parseInt(parts[0]) === 1;
+          return parseInt(k) === d;
+        });
+        size = key || size;
+      }
+      // Also handle direct fraction string
+      if (size === '0.25') size = '1/4';
+      if (size === '0.5') size = '1/2';
+    }
+
+    const total = get(totalIdx);
+
+    orders.push({
+      date: dateStr,
+      branch: branchNorm,
+      customer: get(custIdx) ? String(get(custIdx)).trim() : '',
+      size: size || '',
+      flavor1: get(fl1Idx) ? String(get(fl1Idx)).trim() : '',
+      flavor2: get(fl2Idx) ? String(get(fl2Idx)).trim() : '',
+      total: typeof total === 'number' ? total : null,
+      note: get(noteIdx) ? String(get(noteIdx)).trim() : '',
+    });
+  }
+  return orders;
+}
+
+async function loadAllData() {
+  document.getElementById('loading-state').classList.remove('hidden');
+  document.getElementById('dashboard').classList.add('hidden');
+  chartsBuilt = false;
+  Chart.helpers && Chart.registry && destroyCharts();
+
+  try {
+    const results = await Promise.all(TABS.map(fetchTab));
+    ALL_ORDERS = results.flatMap(parseTable);
+    // Deduplicate by date+branch+customer
+    const seen = new Set();
+    ALL_ORDERS = ALL_ORDERS.filter(o => {
+      const key = `${o.date}|${o.branch}|${o.customer}`;
+      if (seen.has(key)) return false;
+      seen.add(key); return true;
+    });
+
+    document.getElementById('last-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString('th-TH');
+    document.getElementById('loading-state').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+
+    // Set to most recent month with data
+    const months = [...new Set(ALL_ORDERS.map(o => o.date.slice(0,7)))].sort();
+    if (months.length) {
+      const last = months[months.length-1].split('-');
+      curYear = parseInt(last[0]); curMonth = parseInt(last[1]);
+    }
+
+    renderMetrics();
+    renderCalendar();
+    renderList();
+  } catch(e) {
+    document.getElementById('loading-state').innerHTML =
+      `<div style="color:#C0392B;font-size:14px;">โหลดข้อมูลไม่สำเร็จ<br><small>${e.message}</small><br><br><button onclick="loadAllData()" style="padding:8px 16px;border:1px solid #ddd;border-radius:8px;cursor:pointer;font-family:inherit;">ลองใหม่</button></div>`;
+  }
+}
+
+function destroyCharts() {
+  ['c-daily','c-branch','c-rev','c-size'].forEach(id => {
+    const c = Chart.getChart(id); if (c) c.destroy();
+  });
+}
+
+// ─── METRICS ──────────────────────────────────────────────
+function renderMetrics() {
+  const mo = ALL_ORDERS.filter(o => {
+    const d = new Date(o.date); return d.getFullYear()===curYear && d.getMonth()+1===curMonth;
+  });
+  const total = mo.length;
+  const rev = mo.filter(o=>o.total).reduce((s,o)=>s+o.total,0);
+  const sam = mo.filter(o=>o.branch==='Samyan').length;
+  const rat = mo.filter(o=>o.branch==='Ratchaphruek').length;
+  const MONTH_TH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  document.getElementById('metrics-row').innerHTML = `
+    <div class="metric-card">
+      <div class="metric-label">ออเดอร์เดือนนี้</div>
+      <div class="metric-value">${total}</div>
+      <div class="metric-sub">${MONTH_TH[curMonth]} ${curYear}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">ยอดรวม (฿)</div>
+      <div class="metric-value">฿${rev.toLocaleString()}</div>
+      <div class="metric-sub">เฉพาะที่บันทึกราคา</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Samyan</div>
+      <div class="metric-value">${sam}</div>
+      <div class="metric-sub">ออเดอร์</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Ratchaphruek</div>
+      <div class="metric-value">${rat}</div>
+      <div class="metric-sub">ออเดอร์</div>
+    </div>`;
+}
+
+// ─── CALENDAR ─────────────────────────────────────────────
+const MONTH_FULL = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function renderCalendar() {
+  document.getElementById('month-label').textContent = `${MONTH_FULL[curMonth]} ${curYear}`;
+  renderMetrics();
+
+  const byDay = {};
+  ALL_ORDERS.forEach(o => {
+    const d = new Date(o.date);
+    if (d.getFullYear()===curYear && d.getMonth()+1===curMonth) {
+      const day = d.getDate();
+      if (!byDay[day]) byDay[day] = {Samyan:[], Ratchaphruek:[]};
+      const key = o.branch === 'Samyan' ? 'Samyan' : 'Ratchaphruek';
+      byDay[day][key].push(o);
+    }
+  });
+
+  const firstDay = new Date(curYear, curMonth-1, 1).getDay();
+  const daysInMonth = new Date(curYear, curMonth, 0).getDate();
+  const today = new Date().toISOString().slice(0,10);
+
+  let html = '';
+  for (let i=0;i<firstDay;i++) html += '<div class="cal-cell empty"></div>';
+  for (let d=1;d<=daysInMonth;d++) {
+    const ds = `${curYear}-${String(curMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = ds === today;
+    const cells = byDay[d] || {};
+    let pills = '';
+    if (cells.Samyan?.length) pills += `<span class="order-pill pill-samyan">Samyan ×${cells.Samyan.length}</span>`;
+    if (cells.Ratchaphruek?.length) pills += `<span class="order-pill pill-ratch">Ratch ×${cells.Ratchaphruek.length}</span>`;
+    html += `<div class="cal-cell${isToday?' today':''}">
+      <div class="day-num">${d}</div>${pills}</div>`;
+  }
+  document.getElementById('cal-grid').innerHTML = html;
+}
+
+function prevMonth() { curMonth--; if(curMonth<1){curMonth=12;curYear--;} renderCalendar(); }
+function nextMonth() { curMonth++; if(curMonth>12){curMonth=1;curYear++;} renderCalendar(); }
+
+// ─── LIST ─────────────────────────────────────────────────
+function renderList() {
+  const bf = document.getElementById('f-branch').value;
+  const mf = document.getElementById('f-month').value;
+  let data = [...ALL_ORDERS].sort((a,b)=>a.date.localeCompare(b.date));
+  if (bf) data = data.filter(o=>o.branch===bf);
+  if (mf) data = data.filter(o=>new Date(o.date).getMonth()+1===parseInt(mf));
+  const html = data.map(o => {
+    const d = new Date(o.date);
+    const ds = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+    const isSam = o.branch==='Samyan';
+    return `<div class="table-row">
+      <span style="color:#888;font-size:12px;">${ds}</span>
+      <span><span class="branch-tag ${isSam?'tag-samyan':'tag-ratch'}">${o.branch}</span></span>
+      <span>${o.customer||'–'}</span>
+      <span style="color:#888;font-size:12px;">${o.size||'–'}</span>
+      <span>${o.total?'฿'+o.total.toLocaleString():'–'}</span>
+      <span style="font-size:11px;color:#999;">${o.note||''}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('list-body').innerHTML = html || '<div style="padding:24px;text-align:center;color:#aaa;font-size:14px;">ไม่มีข้อมูล</div>';
+}
+
+// ─── CHARTS ───────────────────────────────────────────────
+function buildCharts() {
+  if (chartsBuilt) return;
+  chartsBuilt = true;
+
+  const months = [4,5,6];
+  const MLABEL = ['เม.ย.','พ.ค.','มิ.ย.'];
+  const sam = months.map(m=>ALL_ORDERS.filter(o=>o.branch==='Samyan'&&new Date(o.date).getMonth()+1===m).length);
+  const rat = months.map(m=>ALL_ORDERS.filter(o=>o.branch==='Ratchaphruek'&&new Date(o.date).getMonth()+1===m).length);
+  const rev = months.map(m=>ALL_ORDERS.filter(o=>o.total&&new Date(o.date).getMonth()+1===m).reduce((s,o)=>s+o.total,0));
+
+  const byDay = {};
+  ALL_ORDERS.filter(o=>o.date>='2026-04-01'&&o.date<='2026-06-30').forEach(o=>{byDay[o.date]=(byDay[o.date]||0)+1;});
+  const dayDates = Object.keys(byDay).sort();
+  const dayLabels = dayDates.map(d=>{const dt=new Date(d);return `${dt.getDate()}/${dt.getMonth()+1}`;});
+
+  const opts = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} };
+
+  new Chart(document.getElementById('c-daily'), {
+    type:'bar',
+    data:{ labels:dayLabels, datasets:[{data:dayDates.map(d=>byDay[d]),backgroundColor:'#F5C4A0',borderColor:'#E8703A',borderWidth:1}]},
+    options:{...opts, scales:{x:{ticks:{font:{size:9},maxRotation:45,autoSkip:true,maxTicksLimit:20}},y:{beginAtZero:true,ticks:{stepSize:1}}}}
+  });
+
+  new Chart(document.getElementById('c-branch'), {
+    type:'bar',
+    data:{ labels:MLABEL, datasets:[
+      {label:'Samyan',data:sam,backgroundColor:'#F5C4A0'},
+      {label:'Ratchaphruek',data:rat,backgroundColor:'#C8E6C9'}
+    ]},
+    options:{...opts, plugins:{legend:{display:true,position:'top',labels:{font:{size:11},boxWidth:12}}},
+      scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}
+  });
+
+  new Chart(document.getElementById('c-rev'), {
+    type:'bar',
+    data:{ labels:MLABEL, datasets:[{data:rev,backgroundColor:['#F5C4A0','#C8E6C9','#D4C5F9']}]},
+    options:{...opts, scales:{y:{beginAtZero:true,ticks:{callback:v=>'฿'+v.toLocaleString(),font:{size:10}}}}}
+  });
+
+  const sizeCounts = {};
+  ALL_ORDERS.forEach(o=>{if(o.size&&o.size.trim())sizeCounts[o.size]=(sizeCounts[o.size]||0)+1;});
+  const topS = Object.entries(sizeCounts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  new Chart(document.getElementById('c-size'), {
+    type:'doughnut',
+    data:{labels:topS.map(s=>s[0]),datasets:[{data:topS.map(s=>s[1]),backgroundColor:['#E8703A','#F5C4A0','#2E9E54','#C8E6C9','#7E6AD6','#D4C5F9']}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11},padding:8,boxWidth:12}}}}
+  });
+}
+
+// ─── TABS ─────────────────────────────────────────────────
+function switchTab(id, btn) {
+  ['cal','list','chart'].forEach(t=>{
+    document.getElementById(`tab-${t}`).classList.toggle('hidden', t!==id);
+  });
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if (id==='chart') buildCharts();
+}
+</script>
+</body>
+</html>
