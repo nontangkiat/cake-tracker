@@ -446,11 +446,54 @@ async function fetchTab(tabName) {
   return json.table;
 }
 
+function parseDate(cell) {
+  if (!cell) return null;
+  // gviz date cell: {v: "Date(2026,5,1)", f: "1/6/2026"}
+  // Try formatted value first (f) - most reliable
+  if (cell.f) {
+    const f = String(cell.f).trim();
+    // d/m/yyyy or dd/mm/yyyy
+    const m1 = f.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m1) {
+      const yr = parseInt(m1[3]), mo = parseInt(m1[2]), d = parseInt(m1[1]);
+      if (yr >= 2025 && yr <= 2027)
+        return `${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    }
+    // m/d/yyyy (US format fallback)
+    const m2 = f.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m2) {
+      const yr = parseInt(m2[3]);
+      if (yr >= 2025 && yr <= 2027)
+        return `${yr}-${String(m2[1]).padStart(2,'0')}-${String(m2[2]).padStart(2,'0')}`;
+    }
+  }
+  // Try value (v)
+  const v = cell.v;
+  if (!v && v !== 0) return null;
+  const s = String(v).trim();
+  // "Date(2026,5,1)" — month is 0-indexed
+  const dm = s.match(/Date\((\d+),(\d+),(\d+)\)/);
+  if (dm) {
+    const yr = parseInt(dm[1]), mo = parseInt(dm[2])+1, d = parseInt(dm[3]);
+    if (yr >= 2025 && yr <= 2027)
+      return `${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+  // dd/mm/yyyy string
+  const ms = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (ms) {
+    const yr = parseInt(ms[3]), mo = parseInt(ms[2]), d = parseInt(ms[1]);
+    if (yr >= 2025 && yr <= 2027)
+      return `${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+  return null;
+}
+
 function parseTable(table) {
   const rows = table.rows;
-  // Find header row: row containing 'Date' or 'Branch'
+  // Find header row containing 'Date' and 'Branch'
   let headerIdx = -1;
-  for (let i = 0; i < Math.min(5, rows.length); i++) {
+  for (let i = 0; i < Math.min(6, rows.length); i++) {
+    if (!rows[i] || !rows[i].c) continue;
     const vals = rows[i].c.map(c => c && c.v ? String(c.v).trim() : '');
     if (vals.some(v => v === 'Date') && vals.some(v => v === 'Branch')) {
       headerIdx = i; break;
@@ -468,44 +511,15 @@ function parseTable(table) {
   const totalIdx  = headers.findIndex(h => h === 'Total');
   const noteIdx   = headers.findIndex(h => h === 'Note');
 
-  const SIZE_MAP = {'1/4':0, '1/2':1, '1':2, '2':3, '3':4};
-
   const orders = [];
   for (let i = headerIdx + 2; i < rows.length; i++) {
+    if (!rows[i] || !rows[i].c) continue;
     const r = rows[i].c;
+    const getCell = idx => (r[idx] != null) ? r[idx] : null;
     const get = idx => (r[idx] && r[idx].v != null) ? r[idx].v : null;
 
-    const rawDate = get(dateIdx);
-    if (!rawDate) continue;
-
-    let dateStr = null;
-    if (typeof rawDate === 'string') {
-      // dd/mm/yyyy
-      const m = rawDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-      if (m) dateStr = `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-    } else if (typeof rawDate === 'object' && rawDate) {
-      // gviz Date object
-      try {
-        const d = new Date(rawDate);
-        if (!isNaN(d)) dateStr = d.toISOString().slice(0,10);
-      } catch(e) {}
-    } else if (typeof rawDate === 'number') {
-      // serial date unlikely but handle
-      dateStr = null;
-    }
-    // gviz returns dates as "Date(2026,3,1)" strings sometimes
-    if (!dateStr && typeof rawDate === 'string') {
-      const dm = rawDate.match(/Date\((\d+),(\d+),(\d+)\)/);
-      if (dm) {
-        const y = parseInt(dm[1]), mo = parseInt(dm[2])+1, d = parseInt(dm[3]);
-        dateStr = `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      }
-    }
+    const dateStr = parseDate(getCell(dateIdx));
     if (!dateStr) continue;
-
-    // Skip obviously wrong years
-    const yr = parseInt(dateStr.slice(0,4));
-    if (yr < 2025 || yr > 2027) continue;
 
     const rawBranch = get(branchIdx);
     if (!rawBranch) continue;
@@ -513,24 +527,28 @@ function parseTable(table) {
     const branchNorm = branch.toLowerCase().includes('ratch') || branch.toLowerCase().includes('circle')
       ? 'Ratchaphruek' : branch;
 
-    let size = get(sizeIdx);
-    if (size !== null) {
-      size = String(size).trim();
-      // Convert fraction dates back (gviz parses "1/4" as date Jan 4)
-      const dm = size.match(/Date\((\d+),(\d+),(\d+)\)/);
-      if (dm) {
-        const mo = parseInt(dm[2])+1, d = parseInt(dm[3]);
-        if (d <= 6 && mo <= 6) size = `${d > 2 ? '1/' + d : d == 2 ? '1/2' : '1'}`;
-        const key = Object.keys(SIZE_MAP).find(k => {
-          const parts = k.split('/');
-          if (parts.length === 2) return parseInt(parts[1]) === d && parseInt(parts[0]) === 1;
-          return parseInt(k) === d;
-        });
-        size = key || size;
-      }
-      // Also handle direct fraction string
-      if (size === '0.25') size = '1/4';
-      if (size === '0.5') size = '1/2';
+    // Size — gviz parses "1/4" as a date (Jan 4), so use formatted value
+    let size = '';
+    const sizeCell = getCell(sizeIdx);
+    if (sizeCell) {
+      const sv = sizeCell.v != null ? String(sizeCell.v).trim() : '';
+      // If gviz parsed it as a date, the formatted value has the fraction
+      if (sizeCell.f && /^\d+\/\d+/.test(sizeCell.f)) {
+        // formatted like "1/4/1900" → extract numerator/denominator
+        const fp = sizeCell.f.match(/^(\d+)\/(\d+)/);
+        if (fp) size = `${fp[1]}/${fp[2]}`;
+      } else if (sv.match(/Date\(/)) {
+        // Date(1899,11,4) → day = 4 → "1/4", Date(1899,11,2) → "1/2"
+        const dm2 = sv.match(/Date\((\d+),(\d+),(\d+)\)/);
+        if (dm2) {
+          const d = parseInt(dm2[3]);
+          const smap = {2:'1/2', 3:'1', 4:'1/4', 6:'1/6'};
+          size = smap[d] || sv;
+        }
+      } else if (sv === '0.25') size = '1/4';
+      else if (sv === '0.5') size = '1/2';
+      else if (sv === '0.333' || sv === '0.167') size = sv === '0.333' ? '1/3' : '1/6';
+      else size = sv;
     }
 
     const total = get(totalIdx);
@@ -539,7 +557,7 @@ function parseTable(table) {
       date: dateStr,
       branch: branchNorm,
       customer: get(custIdx) ? String(get(custIdx)).trim() : '',
-      size: size || '',
+      size: size,
       flavor1: get(fl1Idx) ? String(get(fl1Idx)).trim() : '',
       flavor2: get(fl2Idx) ? String(get(fl2Idx)).trim() : '',
       total: typeof total === 'number' ? total : null,
