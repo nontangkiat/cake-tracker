@@ -325,9 +325,8 @@ function parseTable(table) {
     const getFmt = idx => (idx >= 0 && r[idx] && r[idx].f != null) ? r[idx].f : null;
     const str    = idx => { const v = get(idx); return v ? String(v).trim() : ''; };
 
-    // Skip header rows (Branch/สาขา rows at top of June)
-    const firstVal = get(branchIdx);
-    if (firstVal && (String(firstVal).includes('Branch') || String(firstVal).includes('สาขา'))) continue;
+    // Skip header rows — for no-label sheets (June), first 2 rows are English/Thai headers
+    if (!hasLabels && i < 2) continue;
 
     const dateStr = parseDateStr(get(dateIdx));
     if (!dateStr) continue;
