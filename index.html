@@ -228,13 +228,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
-const SHEET_ID = '1pPtrRGeTNwiSDQ830JKzOxpoCk0UZGvvo7dBorcC6RM';
-// Tab name → headers count (parsedNumHeaders from gviz)
-const TABS = [
-  { name: 'Cake orders',      headers: 4 },
-  { name: 'May Cake orders',  headers: 4 },
-  { name: 'June Cake orders', headers: 5 },
-];
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx2zH4wXwDgLA2iNNDOIqT42mHCdV1vUBDdpiAQlwJPC2fQBO7f-Z9fXyB2hfNYnbcSsQ/exec';
 const PASSWORD = 'cake2026';
 
 let ALL_ORDERS = [];
@@ -252,153 +246,20 @@ function checkPw() {
 }
 
 // ─── FETCH ────────────────────────────────────────────────
-async function fetchTab(tab) {
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&headers=${tab.headers}&sheet=${encodeURIComponent(tab.name)}`;
-  const res = await fetch(url);
-  const text = await res.text();
-  const json = JSON.parse(text.replace(/^[^(]+\(/, '').replace(/\);?\s*$/, ''));
-  return json.table;
-}
-
-function parseDateStr(s) {
-  if (!s) return null;
-  s = String(s).trim();
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m) {
-    const d = parseInt(m[1]), mo = parseInt(m[2]), yr = parseInt(m[3]);
-    if (yr >= 2025 && yr <= 2027)
-      return `${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-  }
-  const dm = s.match(/Date\((\d+),(\d+),(\d+)\)/);
-  if (dm) {
-    const yr = parseInt(dm[1]), mo = parseInt(dm[2]) + 1, d = parseInt(dm[3]);
-    if (yr >= 2025 && yr <= 2027)
-      return `${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-  }
-  return null;
-}
-
-function parseTable(table) {
-  const cols = table.cols;
-  const rows = table.rows;
-
-  // Check if labels are populated or empty (June sheet has no labels)
-  const hasLabels = cols.some(c => c.label && c.label.trim().length > 0);
-
-  let dateIdx, branchIdx, custIdx, recipIdx, phoneIdx, sizeIdx,
-      fl1Idx, fl2Idx, noteIdx, msgIdx, candleIdx, staffIdx,
-      priceIdx, extraIngIdx, extraDrwIdx, totalIdx;
-
-  if (hasLabels) {
-    const ci = (kws) => cols.findIndex(c => kws.some(k => c.label.toLowerCase().includes(k.toLowerCase())));
-    dateIdx     = ci(['Date']);
-    branchIdx   = ci(['Branch']);
-    custIdx     = ci(['CUSTOMER NAME', 'Customer']);
-    recipIdx    = ci(['Recipient']);
-    phoneIdx    = ci(['Phone']);
-    sizeIdx     = ci(['Size of the cake', 'Size']);
-    fl1Idx      = ci(['Flavors1', 'Flavor1']);
-    fl2Idx      = ci(['Flavors2', 'Flavor2']);
-    noteIdx     = ci(['Note']);
-    msgIdx      = ci(['Message on cake', 'Message']);
-    candleIdx   = ci(['Extra candle', 'candle']);
-    staffIdx    = ci(['Staff']);
-    priceIdx    = ci(['Price']);
-    extraIngIdx = ci(['Extra ingredient']);
-    extraDrwIdx = ci(['Extra drawing']);
-    totalIdx    = ci(['Total']);
-  } else {
-    // June sheet: fixed column positions A-V (0-21)
-    // A=date, B=branch, C=customer, D=recipient, E=phone, F=size
-    // G=flavor1, H=flavor2, I=note(mixed), J=note, K=message, L=candle
-    // M=sample, N=picture, O=, P=, Q=, R=staff, S=price, T=extraIng, U=extraDrw, V=total
-    dateIdx=0; branchIdx=1; custIdx=2; recipIdx=3; phoneIdx=4; sizeIdx=5;
-    fl1Idx=6; fl2Idx=7; noteIdx=9; msgIdx=10; candleIdx=11;
-    staffIdx=17; priceIdx=18; extraIngIdx=19; extraDrwIdx=20; totalIdx=21;
-  }
-
-  const orders = [];
-  for (let i = 0; i < rows.length; i++) {
-    if (!rows[i] || !rows[i].c) continue;
-    const r = rows[i].c;
-    const get    = idx => (idx >= 0 && r[idx] && r[idx].v != null) ? r[idx].v : null;
-    const getFmt = idx => (idx >= 0 && r[idx] && r[idx].f != null) ? r[idx].f : null;
-    const str    = idx => { const v = get(idx); return v ? String(v).trim() : ''; };
-
-    // Skip header rows — for no-label sheets only
-    if (!hasLabels && i < 2) continue;
-
-    // Use formatted value first (f) — raw value Date(2026,0,6) is ambiguous (gviz 0-index month)
-    const dateStr = parseDateStr(getFmt(dateIdx)) || parseDateStr(get(dateIdx));
-    if (!dateStr) continue;
-    const rawBranch = get(branchIdx);
-    if (!rawBranch) continue;
-    const branch = String(rawBranch).trim();
-    const branchNorm = branch.toLowerCase().includes('ratch') || branch.toLowerCase().includes('circle')
-      ? 'Ratchaphruek' : branch;
-
-    let size = '';
-    const sizeFmt = getFmt(sizeIdx);
-    const sizeVal = get(sizeIdx);
-    if (sizeFmt) {
-      size = String(sizeFmt).trim();
-    } else if (sizeVal) {
-      const sv = String(sizeVal).trim();
-      const dm = sv.match(/Date\(\d+,\d+,(\d+)\)/);
-      if (dm) { const smap={'1':'1','2':'1/2','3':'1','4':'1/4','6':'1/6'}; size = smap[dm[1]]||sv; }
-      else if (sv==='0.25') size='1/4';
-      else if (sv==='0.5') size='1/2';
-      else size=sv;
-    }
-
-    const rawTotal = get(totalIdx);
-    const rawPrice = get(priceIdx);
-    let totalNum = null;
-    if (rawTotal !== null) {
-      const t = parseFloat(String(rawTotal).replace(/,/g,''));
-      if (!isNaN(t) && t > 0) totalNum = t;
-    }
-    if (totalNum === null && typeof rawPrice === 'number') totalNum = rawPrice;
-
-    orders.push({
-      date: dateStr,
-      branch: branchNorm,
-      customer: str(custIdx),
-      recipient: str(recipIdx),
-      phone: str(phoneIdx),
-      size,
-      flavor1: str(fl1Idx),
-      flavor2: str(fl2Idx),
-      note: str(noteIdx),
-      message: str(msgIdx),
-      candle: str(candleIdx),
-      staff: str(staffIdx),
-      price: typeof rawPrice === 'number' ? rawPrice : null,
-      extraIng: str(extraIngIdx),
-      extraDrw: str(extraDrwIdx),
-      total: totalNum,
-    });
-  }
-  return orders;
-}
-
 async function loadAllData() {
   document.getElementById('loading-state').classList.remove('hidden');
   document.getElementById('dashboard').classList.add('hidden');
   chartsBuilt = false;
   destroyCharts();
   try {
-    const results = await Promise.all(TABS.map(fetchTab));
-    ALL_ORDERS = results.flatMap(parseTable);
-    const seen = new Set();
-    ALL_ORDERS = ALL_ORDERS.filter(o => {
-      const key = `${o.date}|${o.branch}|${o.customer}|${o.flavor1}|${o.size}`;
-      if (seen.has(key)) return false;
-      seen.add(key); return true;
-    });
+    const res = await fetch(SCRIPT_URL);
+    const json = await res.json();
+    ALL_ORDERS = json.orders || [];
+
     document.getElementById('last-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString('th-TH');
     document.getElementById('loading-state').classList.add('hidden');
     document.getElementById('dashboard').classList.remove('hidden');
+
     const months = [...new Set(ALL_ORDERS.map(o=>o.date.slice(0,7)))].sort();
     if (months.length) {
       const last = months[months.length-1].split('-');
@@ -410,6 +271,7 @@ async function loadAllData() {
       `<div style="color:#C0392B;font-size:14px;">โหลดข้อมูลไม่สำเร็จ<br><small>${e.message}</small><br><br><button onclick="loadAllData()" style="padding:8px 16px;border:1px solid #ddd;border-radius:8px;cursor:pointer;font-family:inherit;">ลองใหม่</button></div>`;
   }
 }
+
 
 function destroyCharts() {
   ['c-daily','c-branch','c-rev','c-size'].forEach(id => { const c=Chart.getChart(id); if(c)c.destroy(); });
