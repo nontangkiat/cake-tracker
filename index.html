@@ -449,10 +449,17 @@ async function fetchTab(tabName) {
 function parseDateStr(s) {
   if (!s) return null;
   s = String(s).trim();
-  // d/m/yyyy — Thai format used in this sheet
+  // d/m/yyyy — Thai format used in April/May sheets
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (m) {
     const d = parseInt(m[1]), mo = parseInt(m[2]), yr = parseInt(m[3]);
+    if (yr >= 2025 && yr <= 2027)
+      return `${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+  // Date(2026,5,1) — month is 0-indexed, used in June sheet
+  const dm = s.match(/Date\((\d+),(\d+),(\d+)\)/);
+  if (dm) {
+    const yr = parseInt(dm[1]), mo = parseInt(dm[2]) + 1, d = parseInt(dm[3]);
     if (yr >= 2025 && yr <= 2027)
       return `${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   }
