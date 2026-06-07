@@ -446,42 +446,13 @@ async function fetchTab(tabName) {
   return json.table;
 }
 
-function parseDate(cell) {
-  if (!cell) return null;
-  // gviz date cell: {v: "Date(2026,5,1)", f: "1/6/2026"}
-  // Try formatted value first (f) - most reliable
-  if (cell.f) {
-    const f = String(cell.f).trim();
-    // d/m/yyyy or dd/mm/yyyy
-    const m1 = f.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (m1) {
-      const yr = parseInt(m1[3]), mo = parseInt(m1[2]), d = parseInt(m1[1]);
-      if (yr >= 2025 && yr <= 2027)
-        return `${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    }
-    // m/d/yyyy (US format fallback)
-    const m2 = f.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (m2) {
-      const yr = parseInt(m2[3]);
-      if (yr >= 2025 && yr <= 2027)
-        return `${yr}-${String(m2[1]).padStart(2,'0')}-${String(m2[2]).padStart(2,'0')}`;
-    }
-  }
-  // Try value (v)
-  const v = cell.v;
-  if (!v && v !== 0) return null;
-  const s = String(v).trim();
-  // "Date(2026,5,1)" — month is 0-indexed
-  const dm = s.match(/Date\((\d+),(\d+),(\d+)\)/);
-  if (dm) {
-    const yr = parseInt(dm[1]), mo = parseInt(dm[2])+1, d = parseInt(dm[3]);
-    if (yr >= 2025 && yr <= 2027)
-      return `${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-  }
-  // dd/mm/yyyy string
-  const ms = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (ms) {
-    const yr = parseInt(ms[3]), mo = parseInt(ms[2]), d = parseInt(ms[1]);
+function parseDateStr(s) {
+  if (!s) return null;
+  s = String(s).trim();
+  // d/m/yyyy — Thai format used in this sheet
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) {
+    const d = parseInt(m[1]), mo = parseInt(m[2]), yr = parseInt(m[3]);
     if (yr >= 2025 && yr <= 2027)
       return `${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   }
@@ -489,36 +460,31 @@ function parseDate(cell) {
 }
 
 function parseTable(table) {
+  // gviz cols tell us the column positions directly — no need to find header row
+  const cols = table.cols;
   const rows = table.rows;
-  // Find header row containing 'Date' and 'Branch'
-  let headerIdx = -1;
-  for (let i = 0; i < Math.min(6, rows.length); i++) {
-    if (!rows[i] || !rows[i].c) continue;
-    const vals = rows[i].c.map(c => c && c.v ? String(c.v).trim() : '');
-    if (vals.some(v => v === 'Date') && vals.some(v => v === 'Branch')) {
-      headerIdx = i; break;
-    }
-  }
-  if (headerIdx < 0) return [];
 
-  const headers = rows[headerIdx].c.map(c => c && c.v ? String(c.v).trim() : '');
-  const dateIdx   = headers.findIndex(h => h === 'Date');
-  const branchIdx = headers.findIndex(h => h === 'Branch');
-  const custIdx   = headers.findIndex(h => h === 'CUSTOMER NAME' || h === 'Customer Name');
-  const sizeIdx   = headers.findIndex(h => h.toLowerCase().includes('size'));
-  const fl1Idx    = headers.findIndex(h => h === 'Flavors1' || h === 'Flavor1');
-  const fl2Idx    = headers.findIndex(h => h === 'Flavors2' || h === 'Flavor2');
-  const totalIdx  = headers.findIndex(h => h === 'Total');
-  const noteIdx   = headers.findIndex(h => h === 'Note');
+  // Map column index by label keywords
+  const ci = (keywords) => cols.findIndex(c => keywords.some(k => c.label.toLowerCase().includes(k.toLowerCase())));
+  const dateIdx   = ci(['Date']);
+  const branchIdx = ci(['Branch']);
+  const custIdx   = ci(['CUSTOMER NAME', 'Customer']);
+  const sizeIdx   = ci(['Size of the cake', 'Size']);
+  const fl1Idx    = ci(['Flavors1', 'Flavor1']);
+  const fl2Idx    = ci(['Flavors2', 'Flavor2']);
+  const totalIdx  = ci(['Total']);
+  const noteIdx   = ci(['Note']);
 
   const orders = [];
-  for (let i = headerIdx + 2; i < rows.length; i++) {
+  for (let i = 0; i < rows.length; i++) {
     if (!rows[i] || !rows[i].c) continue;
     const r = rows[i].c;
-    const getCell = idx => (r[idx] != null) ? r[idx] : null;
-    const get = idx => (r[idx] && r[idx].v != null) ? r[idx].v : null;
+    const get = idx => (idx >= 0 && r[idx] && r[idx].v != null) ? r[idx].v : null;
+    const getFmt = idx => (idx >= 0 && r[idx] && r[idx].f != null) ? r[idx].f : null;
 
-    const dateStr = parseDate(getCell(dateIdx));
+    const rawDate = get(dateIdx);
+    if (!rawDate) continue;
+    const dateStr = parseDateStr(rawDate);
     if (!dateStr) continue;
 
     const rawBranch = get(branchIdx);
@@ -527,28 +493,25 @@ function parseTable(table) {
     const branchNorm = branch.toLowerCase().includes('ratch') || branch.toLowerCase().includes('circle')
       ? 'Ratchaphruek' : branch;
 
-    // Size — gviz parses "1/4" as a date (Jan 4), so use formatted value
+    // Size: gviz interprets "1/4" as a date → use formatted value "1/4" directly
     let size = '';
-    const sizeCell = getCell(sizeIdx);
-    if (sizeCell) {
-      const sv = sizeCell.v != null ? String(sizeCell.v).trim() : '';
-      // If gviz parsed it as a date, the formatted value has the fraction
-      if (sizeCell.f && /^\d+\/\d+/.test(sizeCell.f)) {
-        // formatted like "1/4/1900" → extract numerator/denominator
-        const fp = sizeCell.f.match(/^(\d+)\/(\d+)/);
-        if (fp) size = `${fp[1]}/${fp[2]}`;
-      } else if (sv.match(/Date\(/)) {
-        // Date(1899,11,4) → day = 4 → "1/4", Date(1899,11,2) → "1/2"
-        const dm2 = sv.match(/Date\((\d+),(\d+),(\d+)\)/);
-        if (dm2) {
-          const d = parseInt(dm2[3]);
-          const smap = {2:'1/2', 3:'1', 4:'1/4', 6:'1/6'};
-          size = smap[d] || sv;
-        }
-      } else if (sv === '0.25') size = '1/4';
-      else if (sv === '0.5') size = '1/2';
-      else if (sv === '0.333' || sv === '0.167') size = sv === '0.333' ? '1/3' : '1/6';
-      else size = sv;
+    const sizeFmt = getFmt(sizeIdx);
+    const sizeVal = get(sizeIdx);
+    if (sizeFmt) {
+      // formatted value is "1/4", "1/2", "2 Tier..." etc
+      size = String(sizeFmt).trim();
+    } else if (sizeVal) {
+      const sv = String(sizeVal).trim();
+      // gviz Date string: Date(2026,0,4) → day=4 → "1/4"
+      const dm = sv.match(/Date\(\d+,\d+,(\d+)\)/);
+      if (dm) {
+        const smap = {'1':'1','2':'1/2','3':'1','4':'1/4','6':'1/6'};
+        size = smap[dm[1]] || sv;
+      } else {
+        if (sv === '0.25') size = '1/4';
+        else if (sv === '0.5') size = '1/2';
+        else size = sv;
+      }
     }
 
     const total = get(totalIdx);
