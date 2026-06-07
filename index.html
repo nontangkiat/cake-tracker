@@ -281,24 +281,41 @@ function parseDateStr(s) {
 function parseTable(table) {
   const cols = table.cols;
   const rows = table.rows;
-  const ci = (kws) => cols.findIndex(c => kws.some(k => c.label.toLowerCase().includes(k.toLowerCase())));
 
-  const dateIdx      = ci(['Date']);
-  const branchIdx    = ci(['Branch']);
-  const custIdx      = ci(['CUSTOMER NAME', 'Customer']);
-  const recipIdx     = ci(['Recipient']);
-  const phoneIdx     = ci(['Phone']);
-  const sizeIdx      = ci(['Size of the cake', 'Size']);
-  const fl1Idx       = ci(['Flavors1', 'Flavor1']);
-  const fl2Idx       = ci(['Flavors2', 'Flavor2']);
-  const noteIdx      = ci(['Note']);
-  const msgIdx       = ci(['Message on cake', 'Message']);
-  const candleIdx    = ci(['Extra candle', 'candle']);
-  const staffIdx     = ci(['Staff']);
-  const priceIdx     = ci(['Price']);
-  const extraIngIdx  = ci(['Extra ingredient']);
-  const extraDrwIdx  = ci(['Extra drawing']);
-  const totalIdx     = ci(['Total']);
+  // Check if labels are populated or empty (June sheet has no labels)
+  const hasLabels = cols.some(c => c.label && c.label.trim().length > 0);
+
+  let dateIdx, branchIdx, custIdx, recipIdx, phoneIdx, sizeIdx,
+      fl1Idx, fl2Idx, noteIdx, msgIdx, candleIdx, staffIdx,
+      priceIdx, extraIngIdx, extraDrwIdx, totalIdx;
+
+  if (hasLabels) {
+    const ci = (kws) => cols.findIndex(c => kws.some(k => c.label.toLowerCase().includes(k.toLowerCase())));
+    dateIdx     = ci(['Date']);
+    branchIdx   = ci(['Branch']);
+    custIdx     = ci(['CUSTOMER NAME', 'Customer']);
+    recipIdx    = ci(['Recipient']);
+    phoneIdx    = ci(['Phone']);
+    sizeIdx     = ci(['Size of the cake', 'Size']);
+    fl1Idx      = ci(['Flavors1', 'Flavor1']);
+    fl2Idx      = ci(['Flavors2', 'Flavor2']);
+    noteIdx     = ci(['Note']);
+    msgIdx      = ci(['Message on cake', 'Message']);
+    candleIdx   = ci(['Extra candle', 'candle']);
+    staffIdx    = ci(['Staff']);
+    priceIdx    = ci(['Price']);
+    extraIngIdx = ci(['Extra ingredient']);
+    extraDrwIdx = ci(['Extra drawing']);
+    totalIdx    = ci(['Total']);
+  } else {
+    // June sheet: fixed column positions A-V (0-21)
+    // A=date, B=branch, C=customer, D=recipient, E=phone, F=size
+    // G=flavor1, H=flavor2, I=note(mixed), J=note, K=message, L=candle
+    // M=sample, N=picture, O=, P=, Q=, R=staff, S=price, T=extraIng, U=extraDrw, V=total
+    dateIdx=0; branchIdx=1; custIdx=2; recipIdx=3; phoneIdx=4; sizeIdx=5;
+    fl1Idx=6; fl2Idx=7; noteIdx=9; msgIdx=10; candleIdx=11;
+    staffIdx=17; priceIdx=18; extraIngIdx=19; extraDrwIdx=20; totalIdx=21;
+  }
 
   const orders = [];
   for (let i = 0; i < rows.length; i++) {
@@ -307,6 +324,10 @@ function parseTable(table) {
     const get    = idx => (idx >= 0 && r[idx] && r[idx].v != null) ? r[idx].v : null;
     const getFmt = idx => (idx >= 0 && r[idx] && r[idx].f != null) ? r[idx].f : null;
     const str    = idx => { const v = get(idx); return v ? String(v).trim() : ''; };
+
+    // Skip header rows (Branch/สาขา rows at top of June)
+    const firstVal = get(branchIdx);
+    if (firstVal && (String(firstVal).includes('Branch') || String(firstVal).includes('สาขา'))) continue;
 
     const dateStr = parseDateStr(get(dateIdx));
     if (!dateStr) continue;
