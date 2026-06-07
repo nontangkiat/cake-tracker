@@ -233,7 +233,7 @@ const SHEET_ID = '1pPtrRGeTNwiSDQ830JKzOxpoCk0UZGvvo7dBorcC6RM';
 const TABS = [
   { name: 'Cake orders',      headers: 4 },
   { name: 'May Cake orders',  headers: 4 },
-  { name: 'June Cake orders', headers: 1 },
+  { name: 'June Cake orders', headers: 5 },
 ];
 const PASSWORD = 'cake2026';
 
@@ -325,7 +325,7 @@ function parseTable(table) {
     const getFmt = idx => (idx >= 0 && r[idx] && r[idx].f != null) ? r[idx].f : null;
     const str    = idx => { const v = get(idx); return v ? String(v).trim() : ''; };
 
-    // Skip header rows — for no-label sheets (June), first 2 rows are English/Thai headers
+    // Skip header rows — for no-label sheets only
     if (!hasLabels && i < 2) continue;
 
     const dateStr = parseDateStr(get(dateIdx));
