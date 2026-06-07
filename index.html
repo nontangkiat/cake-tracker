@@ -109,6 +109,51 @@
   .modal-price-item.total .modal-price-label { color: rgba(255,255,255,0.6); }
   .modal-price-item.total .modal-price-value { color: white; }
 
+  /* PREP TAB */
+  .prep-day-block { margin-bottom: 20px; }
+  .prep-day-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 10px;
+  }
+  .prep-date-badge {
+    font-family: 'DM Serif Display', serif;
+    font-size: 15px; color: var(--brown-dark);
+    background: var(--warm-white);
+    border: 1px solid var(--border);
+    border-radius: 10px; padding: 6px 14px;
+    white-space: nowrap;
+  }
+  .prep-date-badge.today { background: var(--brown-dark); color: white; border-color: var(--brown-dark); }
+  .prep-date-badge.tomorrow { background: var(--accent-soft); color: var(--brown-dark); border-color: var(--accent); }
+  .prep-order-count { font-size: 12px; color: var(--brown-light); }
+  .prep-branch-section { margin-bottom: 8px; }
+  .prep-branch-label {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.06em;
+    text-transform: uppercase; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .prep-flavors-grid {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;
+  }
+  .flavor-chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 20px;
+    font-size: 12px; font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--warm-white);
+  }
+  .flavor-chip .count {
+    background: var(--brown-dark); color: white;
+    border-radius: 10px; padding: 0px 7px;
+    font-size: 11px; font-weight: 500;
+  }
+  .flavor-chip.samyan { background: var(--samyan-bg); border-color: var(--accent-soft); color: var(--samyan-text); }
+  .flavor-chip.samyan .count { background: var(--samyan-text); }
+  .flavor-chip.ratch { background: var(--ratch-bg); border-color: #a8d5b5; color: var(--ratch-text); }
+  .flavor-chip.ratch .count { background: var(--ratch-text); }
+  .prep-customers { font-size: 11px; color: var(--brown-light); margin-top: 4px; padding-left: 4px; }
+  .prep-empty { text-align: center; padding: 40px; color: var(--brown-light); font-size: 14px; }
+
   /* CHART */
   .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   .chart-card { background: var(--warm-white); border-radius: 16px; border: 1px solid var(--border); padding: 24px; }
@@ -165,12 +210,31 @@
     <div class="metrics" id="metrics-row"></div>
 
     <div class="tab-row">
-      <button class="tab active" onclick="switchTab('cal',this)">📅 ปฏิทิน</button>
+      <button class="tab active" onclick="switchTab('prep',this)">🍦 เตรียมวัตถุดิบ</button>
+      <button class="tab" onclick="switchTab('cal',this)">📅 ปฏิทิน</button>
       <button class="tab" onclick="switchTab('list',this)">📋 รายการ</button>
       <button class="tab" onclick="switchTab('chart',this)">📊 สถิติ</button>
     </div>
 
-    <div id="tab-cal">
+    <!-- PREP TAB -->
+    <div id="tab-prep">
+      <div class="list-controls">
+        <select id="prep-days" onchange="renderPrep()">
+          <option value="3">3 วันข้างหน้า</option>
+          <option value="7" selected>7 วันข้างหน้า</option>
+          <option value="14">14 วันข้างหน้า</option>
+          <option value="30">เดือนนี้ทั้งหมด</option>
+        </select>
+        <select id="prep-branch" onchange="renderPrep()">
+          <option value="">ทุกสาขา</option>
+          <option value="Samyan">Samyan</option>
+          <option value="Ratchaphruek">Ratchaphruek</option>
+        </select>
+      </div>
+      <div id="prep-body"></div>
+    </div>
+
+    <div id="tab-cal" class="hidden">
       <div class="cal-controls">
         <div class="month-nav">
           <button class="nav-btn" onclick="prevMonth()">‹</button>
@@ -265,7 +329,7 @@ async function loadAllData() {
       const last = months[months.length-1].split('-');
       curYear = parseInt(last[0]); curMonth = parseInt(last[1]);
     }
-    renderMetrics(); renderCalendar(); renderList();
+    renderMetrics(); renderCalendar(); renderList(); renderPrep();
   } catch(e) {
     document.getElementById('loading-state').innerHTML =
       `<div style="color:#C0392B;font-size:14px;">โหลดข้อมูลไม่สำเร็จ<br><small>${e.message}</small><br><br><button onclick="loadAllData()" style="padding:8px 16px;border:1px solid #ddd;border-radius:8px;cursor:pointer;font-family:inherit;">ลองใหม่</button></div>`;
@@ -421,8 +485,110 @@ function buildCharts() {
   new Chart(document.getElementById('c-size'),{type:'doughnut',data:{labels:ts.map(s=>s[0]),datasets:[{data:ts.map(s=>s[1]),backgroundColor:['#E8703A','#F5C4A0','#2E9E54','#C8E6C9','#7E6AD6','#D4C5F9']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11},padding:8,boxWidth:12}}}}});
 }
 
+// ─── PREP ─────────────────────────────────────────────────
+function renderPrep() {
+  const days = parseInt(document.getElementById('prep-days').value);
+  const bf = document.getElementById('prep-branch').value;
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  // Get date range
+  let orders = ALL_ORDERS.filter(o => {
+    const d = new Date(o.date);
+    d.setHours(0,0,0,0);
+    const diffDays = (d - today) / 86400000;
+    return diffDays >= 0 && diffDays < days;
+  });
+  if (bf) orders = orders.filter(o => o.branch === bf);
+
+  // Group by date
+  const byDate = {};
+  orders.forEach(o => {
+    if (!byDate[o.date]) byDate[o.date] = [];
+    byDate[o.date].push(o);
+  });
+
+  const sortedDates = Object.keys(byDate).sort();
+  if (!sortedDates.length) {
+    document.getElementById('prep-body').innerHTML =
+      `<div class="prep-empty">ไม่มีออเดอร์ในช่วงเวลานี้</div>`;
+    return;
+  }
+
+  const todayStr = today.toISOString().slice(0,10);
+  const tomorrowStr = new Date(today.getTime()+86400000).toISOString().slice(0,10);
+  const DAYS_TH = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์'];
+  const MONTHS_TH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+  let html = '';
+  sortedDates.forEach(date => {
+    const dayOrders = byDate[date];
+    const dt = new Date(date);
+    const dayName = DAYS_TH[dt.getDay()];
+    const dateLabel = `${dayName} ${dt.getDate()} ${MONTHS_TH[dt.getMonth()+1]} ${dt.getFullYear()}`;
+    const badgeClass = date === todayStr ? 'today' : date === tomorrowStr ? 'tomorrow' : '';
+    const dayTag = date === todayStr ? ' · วันนี้' : date === tomorrowStr ? ' · พรุ่งนี้' : '';
+
+    // Group by branch
+    const branches = ['Samyan', 'Ratchaphruek'];
+    let branchHtml = '';
+
+    branches.forEach(branch => {
+      const bOrders = dayOrders.filter(o => o.branch === branch);
+      if (!bOrders.length) return;
+
+      // Count flavors
+      const flavorCount = {};
+      const flavorCustomers = {};
+      bOrders.forEach(o => {
+        [o.flavor1, o.flavor2].filter(Boolean).forEach(f => {
+          f = f.trim();
+          if (!f) return;
+          flavorCount[f] = (flavorCount[f] || 0) + 1;
+          if (!flavorCustomers[f]) flavorCustomers[f] = [];
+          if (o.customer) flavorCustomers[f].push(o.customer);
+        });
+      });
+
+      const chipClass = branch === 'Samyan' ? 'samyan' : 'ratch';
+      const dotColor = branch === 'Samyan' ? 'var(--samyan-dot)' : 'var(--ratch-dot)';
+
+      const chips = Object.entries(flavorCount)
+        .sort((a,b) => b[1]-a[1])
+        .map(([f,c]) => `<div class="flavor-chip ${chipClass}"><span>${f}</span><span class="count">×${c}</span></div>`)
+        .join('');
+
+      // Customer names
+      const customers = [...new Set(bOrders.map(o=>o.customer).filter(Boolean))].join(', ');
+
+      branchHtml += `
+        <div class="prep-branch-section">
+          <div class="prep-branch-label">
+            <div class="legend-dot" style="background:${dotColor};width:8px;height:8px;border-radius:2px;"></div>
+            ${branch} · ${bOrders.length} ออเดอร์
+          </div>
+          <div class="prep-flavors-grid">${chips}</div>
+          <div class="prep-customers">👤 ${customers}</div>
+        </div>`;
+    });
+
+    html += `
+      <div class="prep-day-block">
+        <div class="prep-day-header">
+          <div class="prep-date-badge ${badgeClass}">${dateLabel}${dayTag}</div>
+          <span class="prep-order-count">${dayOrders.length} ออเดอร์รวม</span>
+        </div>
+        <div style="background:var(--warm-white);border:1px solid var(--border);border-radius:14px;padding:16px 18px;">
+          ${branchHtml}
+        </div>
+      </div>`;
+  });
+
+  document.getElementById('prep-body').innerHTML = html;
+}
+
 function switchTab(id, btn) {
-  ['cal','list','chart'].forEach(t=>document.getElementById(`tab-${t}`).classList.toggle('hidden',t!==id));
+  ['prep','cal','list','chart'].forEach(t=>document.getElementById(`tab-${t}`).classList.toggle('hidden',t!==id));
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   if(id==='chart') buildCharts();
